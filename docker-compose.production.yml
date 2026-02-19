@@ -21,7 +21,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Backend API (NestJS)
+  # Backend API (NestJS) - FIX: Tambahkan command untuk migrations
   backend:
     build:
       context: ./backend
@@ -29,7 +29,7 @@ services:
     container_name: clothing_inventory_backend
     restart: unless-stopped
     environment:
-      - POSTGRES_HOST=db
+      - POSTGRES_HOST=db # ✅ BENAR (service name di Docker Compose)
       - POSTGRES_PORT=${POSTGRES_PORT}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -45,6 +45,8 @@ services:
         condition: service_healthy
     networks:
       - clothing_network
+    # ✅ KRUSIAL: Jalankan migrations saat start
+    command: sh -c "sleep 5 && npx prisma migrate deploy && npm run start:prod" # ← TAMBAHKAN INI!
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${BACKEND_PORT}/health"]
       interval: 30s
