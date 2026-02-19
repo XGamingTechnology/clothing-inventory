@@ -1,35 +1,127 @@
 # ========================================
-# CLOTHING INVENTORY SYSTEM
+# CLOTHING INVENTORY SYSTEM - PRODUCTION
+# ========================================
+# Domain: inventory.getopurtunity.online
+# Server: 76.13.17.76
 # ========================================
 
-inventory.getopurtunity.online {
-    # Redirect www to non-www
+# Redirect www ke non-www (SEO best practice)
+www.inventory.getopurtunity.online {
     redir https://inventory.getopurtunity.online{uri} permanent
-    
-    # Frontend
-    reverse_proxy http://localhost:3003
-    
-    # Security headers
-    header {
-        X-Content-Type-Options nosniff
-        X-Frame-Options DENY
-        X-XSS-Protection "1; mode=block"
-        Referrer-Policy strict-origin-when-cross-origin
+}
+
+# Main domain configuration
+inventory.getopurtunity.online {
+    # ========================================
+    # FRONTEND (React + Vite)
+    # ========================================
+    handle / {
+        # Security headers
+        header {
+            # HSTS (HTTPS enforcement)
+            Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+            
+            # Clickjacking protection
+            X-Frame-Options "SAMEORIGIN"
+            
+            # MIME sniffing protection
+            X-Content-Type-Options "nosniff"
+            
+            # XSS protection
+            X-XSS-Protection "1; mode=block"
+            
+            # Content Security Policy (adjust as needed)
+            Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://inventory.getopurtunity.online"
+            
+            # Referrer policy
+            Referrer-Policy "strict-origin-when-cross-origin"
+            
+            # Permissions policy
+            Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        }
+        
+        # Gzip compression
+        encode gzip zstd
+        
+        # Reverse proxy ke frontend container
+        reverse_proxy clothing_inventory_frontend:80
+        
+        # SPA fallback untuk React Router
+        try_files {path} /index.html
     }
-}
-
-# API endpoint
-inventory.getopurtunity.online/api/* {
-    uri strip_prefix /api
-    reverse_proxy http://localhost:3002
     
-    # CORS headers
-    header Access-Control-Allow-Origin *
-    header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-    header Access-Control-Allow-Headers "Content-Type, Authorization"
-}
-
-# Auto HTTPS with Let's Encrypt
-tls {
-    protocols tls1.2 tls1.3
+    # ========================================
+    # API ENDPOINT (NestJS Backend)
+    # ========================================
+    handle /api/* {
+        # CORS headers untuk frontend
+        header {
+            Access-Control-Allow-Origin "https://inventory.getopurtunity.online"
+            Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+            Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+            Access-Control-Allow-Credentials "true"
+            Access-Control-Max-Age "3600"
+        }
+        
+        # Handle preflight requests
+        @preflight method OPTIONS
+        respond @preflight 204
+        
+        # Reverse proxy ke backend container
+        reverse_proxy clothing_inventory_backend:3002
+        
+        # Security headers khusus API
+        header {
+            X-Content-Type-Options "nosniff"
+            X-Frame-Options "DENY"
+        }
+    }
+    
+    # ========================================
+    # HEALTH CHECK (untuk monitoring)
+    # ========================================
+    handle /health {
+        reverse_proxy clothing_inventory_backend:3002
+    }
+    
+    # ========================================
+    # SECURITY & PERFORMANCE
+    # ========================================
+    # Blokir akses ke file sensitif
+    @sensitive {
+        path *.env *.log *.sql *.backup *.bak
+        path */.git/* */.env* */node_modules/* */.dockerignore
+    }
+    respond @sensitive 404
+    
+    # Rate limiting (opsional tapi direkomendasikan)
+    # rate_limit {
+    #     zone inventory 10m 20
+    #     burst 5
+    #     source_ip
+    # }
+    
+    # Auto HTTPS dengan Let's Encrypt
+    tls admin@getopurtunity.online {
+        protocols tls1.2 tls1.3
+        ciphers TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+        curves x25519 secp384r1 secp521r1
+    }
+    
+    # Log access & error (untuk debugging)
+    log {
+        output file /var/log/caddy/inventory-access.log {
+            roll_size 100mb
+            roll_keep 10
+            roll_keep_for 168h
+        }
+        format json
+        level INFO
+    }
+    
+    log {
+        output stderr
+        format console
+        level ERROR
+    }
 }
