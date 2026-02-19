@@ -1,36 +1,41 @@
-# Stage 1
+# Stage 1: Build
 FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-COPY package.json ./
-COPY package-lock.json ./
+# Install dependencies
+COPY package*.json ./
 RUN npm ci
 
-COPY src ./src
-COPY tsconfig.json ./
-COPY nest-cli.json ./
+# Copy source code
+COPY . .
 
+# Build TypeScript
 RUN npm run build
 
-
-# Stage 2
+# Stage 2: Production
 FROM node:18-alpine
 
 WORKDIR /app
 
-COPY package.json ./
-COPY package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+# Install production dependencies only
+COPY package*.json ./
+RUN npm ci --only=production && npm cache clean --force
 
+# Copy build artifacts
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/nest-cli.json ./nest-cli.json
 
+# Security hardening
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S inventory -u 1001 && \
-    chown -R inventory:nodejs /app
+    chown -R inventory:nodejs /app && \
+    chmod -R 755 /app
 
 USER inventory
 
 EXPOSE 3002
 
-CMD ["node", "dist/main"]
+# ✅ Tunggu DB ready + start app (TypeORM handle schema sync)
+CMD ["sh", "-c", "sleep 10 && node dist/main"]
