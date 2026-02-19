@@ -11,7 +11,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - db_/var/lib/postgresql/data # ✅ Named volume (tanpa typo)
+      - db_data:/var/lib/postgresql/data # ✅ FIX: Tambahkan TITIK DUA (:) setelah nama volume
       - ./backups:/backups
     networks:
       - clothing_network
