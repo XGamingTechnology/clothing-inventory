@@ -3,31 +3,26 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Copy dependency files
-COPY backend/package.json ./
-COPY backend/package-lock.json ./
+COPY package.json ./
+COPY package-lock.json ./
 RUN npm ci
 
-# Copy source files
-COPY backend/prisma ./prisma
-COPY backend/src ./src
-COPY backend/tsconfig.json ./
-COPY backend/nest-cli.json ./
+COPY prisma ./prisma
+COPY src ./src
+COPY tsconfig.json ./
+COPY nest-cli.json ./
 
-# Generate Prisma Client
 RUN npx prisma generate
-
-# Build
 RUN npm run build
 
 
-# Stage 2: Production
+# Stage 2
 FROM node:18-alpine
 
 WORKDIR /app
 
-COPY backend/package.json ./
-COPY backend/package-lock.json ./
+COPY package.json ./
+COPY package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=builder /app/dist ./dist
