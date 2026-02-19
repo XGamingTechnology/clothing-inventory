@@ -1,0 +1,66 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: clothing_inventory_dev_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: clothing_inventory_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - dev_db_/var/lib/postgresql/data
+    networks:
+      - clothing_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: clothing_inventory_dev_backend
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=clothing_inventory_dev
+      - JWT_SECRET=dev_secret_key
+      - JWT_EXPIRES_IN=1d
+      - NODE_ENV=development
+      - PORT=3002
+    ports:
+      - "3002:3002"
+      - "9229:9229" # Node debugger
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/package.json:/app/package.json
+    depends_on:
+      - db
+    networks:
+      - clothing_network
+    command: npm run start:dev
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: clothing_inventory_dev_frontend
+    environment:
+      - VITE_API_URL=http://localhost:3002/api
+    ports:
+      - "3004:5173"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    networks:
+      - clothing_network
+    command: npm run dev
+
+volumes:
+  dev_db_data:
+
+networks:
+  clothing_network:
+    driver: bridge

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Test API</title>
+  </head>
+  <body>
+    <h1>Test Products API</h1>
+
+    <h2>Create Product</h2>
+    <form id="createProductForm">
+      <input type="text" name="name" placeholder="Name" required /><br />
+      <input type="text" name="sku" placeholder="SKU" required /><br />
+      <input type="number" name="hpp" placeholder="HPP" required /><br />
+      <input type="number" name="sellingPrice" placeholder="Selling Price" required /><br />
+      <input type="number" name="stock" placeholder="Stock" required /><br />
+      <button type="submit">Create Product</button>
+    </form>
+
+    <h2>Get All Products</h2>
+    <button onclick="getProducts()">Get Products</button>
+    <div id="productsList"></div>
+
+    <script>
+      const API_URL = "http://localhost:3002";
+
+      document.getElementById("createProductForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const product = Object.fromEntries(formData);
+        product.hpp = parseFloat(product.hpp);
+        product.sellingPrice = parseFloat(product.sellingPrice);
+        product.stock = parseInt(product.stock);
+
+        const response = await fetch(`${API_URL}/products`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(product),
+        });
+
+        const result = await response.json();
+        alert("Product created: " + JSON.stringify(result, null, 2));
+        e.target.reset();
+      });
+
+      async function getProducts() {
+        const response = await fetch(`${API_URL}/products`);
+        const products = await response.json();
+        document.getElementById("productsList").innerHTML = "<pre>" + JSON.stringify(products, null, 2) + "</pre>";
+      }
+    </script>
+  </body>
+</html>
