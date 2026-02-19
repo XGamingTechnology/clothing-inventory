@@ -1,7 +1,6 @@
 version: "3.8"
 
 services:
-  # PostgreSQL Database
   db:
     image: postgres:16-alpine
     container_name: clothing_inventory_db
@@ -11,7 +10,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - db_data:/var/lib/postgresql/data # ✅ FIX: Tambahkan TITIK DUA (:) setelah nama volume
+      - db_data:/var/lib/postgresql/data
       - ./backups:/backups
     networks:
       - clothing_network
@@ -21,7 +20,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # Backend API (NestJS)
   backend:
     build:
       context: ./backend
@@ -45,16 +43,14 @@ services:
         condition: service_healthy
     networks:
       - clothing_network
-    # ✅ KRUSIAL: Tunggu DB ready sebelum start app
     command: sh -c "sleep 10 && node dist/main"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${BACKEND_PORT}/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s # ✅ Beri waktu extra untuk schema sync
+      start_period: 40s
 
-  # Frontend (React + Nginx)
   frontend:
     build:
       context: ./frontend
@@ -67,7 +63,7 @@ services:
       - clothing_network
 
 volumes:
-  db_data: # ✅ Mapping (TANPA TANDA -) ← INI YANG SALAH SEBELUMNYA!
+  db_data:
 
 networks:
   clothing_network:
