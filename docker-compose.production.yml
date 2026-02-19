@@ -11,7 +11,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_/var/lib/postgresql/data
       - ./backups:/backups
     networks:
       - clothing_network
@@ -21,7 +21,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Backend API (NestJS) - FIX: Tambahkan command untuk migrations
+  # Backend API (NestJS) - FIX: Tambahkan delay + auto-sync
   backend:
     build:
       context: ./backend
@@ -45,14 +45,14 @@ services:
         condition: service_healthy
     networks:
       - clothing_network
-    # ✅ KRUSIAL: Jalankan migrations saat start
-    command: node dist/main
-
+    # ✅ KRUSIAL: Tunggu DB ready + jalankan app (TypeORM auto-sync schema)
+    command: sh -c "sleep 10 && node dist/main"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${BACKEND_PORT}/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 40s # ✅ Beri waktu extra untuk schema sync
 
   # Frontend (React + Nginx)
   frontend:
@@ -66,8 +66,7 @@ services:
     networks:
       - clothing_network
 
-volumes:
-  db_data:
+volumes: db_
 
 networks:
   clothing_network:
