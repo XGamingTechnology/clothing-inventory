@@ -11,7 +11,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - db_/var/lib/postgresql/data
+      - db_/var/lib/postgresql/data # ✅ Named volume (tanpa typo)
       - ./backups:/backups
     networks:
       - clothing_network
@@ -21,7 +21,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Backend API (NestJS) - FIX: Tambahkan delay + auto-sync
+  # Backend API (NestJS)
   backend:
     build:
       context: ./backend
@@ -29,7 +29,7 @@ services:
     container_name: clothing_inventory_backend
     restart: unless-stopped
     environment:
-      - POSTGRES_HOST=db # ✅ BENAR (service name di Docker Compose)
+      - POSTGRES_HOST=db
       - POSTGRES_PORT=${POSTGRES_PORT}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -45,7 +45,7 @@ services:
         condition: service_healthy
     networks:
       - clothing_network
-    # ✅ KRUSIAL: Tunggu DB ready + jalankan app (TypeORM auto-sync schema)
+    # ✅ KRUSIAL: Tunggu DB ready sebelum start app
     command: sh -c "sleep 10 && node dist/main"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${BACKEND_PORT}/health"]
@@ -66,7 +66,8 @@ services:
     networks:
       - clothing_network
 
-volumes: db_
+volumes:
+  db_data: # ✅ Mapping (TANPA TANDA -) ← INI YANG SALAH SEBELUMNYA!
 
 networks:
   clothing_network:
