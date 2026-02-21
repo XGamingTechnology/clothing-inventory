@@ -1,17 +1,17 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
-import { Order } from './order.entity';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from "typeorm";
+import { Order } from "./order.entity";
 
-@Entity('order_items')
+@Entity("order_items")
 export class OrderItem {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Order, (order) => order.items)
-  @JoinColumn({ name: 'order_id' })
+  // ✅ Relation only - TypeORM auto-manage order_id column
+  @ManyToOne(() => Order, (order) => order.items, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "order_id" }) // ✅ Ini yang bikin kolom order_id di DB
   order: Order;
 
-  @Column()
-  orderId: number;
+  // ❌ HAPUS INI: @Column() orderId: number;  <-- Ini yang bikin conflict!
 
   @Column()
   productId: number;
@@ -28,18 +28,18 @@ export class OrderItem {
   @Column({ nullable: true })
   color?: string;
 
-  @Column({ type: 'int' })
+  @Column({ type: "int" })
   quantity: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  @Column({ type: "decimal", precision: 12, scale: 2 })
   unitPrice: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  @Column({ type: "decimal", precision: 12, scale: 2 })
   unitHpp: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  @Column({ type: "decimal", precision: 12, scale: 2 })
   subtotal: number;
 
-  @Column({ name: 'created_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ name: "created_at", type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
   createdAt: Date;
 }

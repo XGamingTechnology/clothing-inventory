@@ -12,6 +12,8 @@ import StockList from "./pages/stock/StockList";
 import StockInForm from "./pages/stock/StockInForm";
 import ProductDetail from "./pages/products/ProductDetail";
 import Layout from "./components/layout/Layout";
+import OrderDetail from "./pages/orders/OrderDetail";
+import FinancialReport from "./pages/reports/FinancialReport";
 
 const RoutesComponent = () => {
   const { isAuthenticated, loading } = useAuth();
@@ -40,12 +42,14 @@ const RoutesComponent = () => {
           <Route path="/" element={<Dashboard />} />
           <Route path="/products/:id" element={<ProductDetail />} />
           <Route path="/products/new" element={<ProductForm />} />
+          <Route path="/orders/:id" element={<OrderDetail />} />
           <Route path="/products" element={<ProductsList />} />
           <Route path="/products/edit/:id" element={<ProductForm />} />
           <Route path="/orders" element={<OrdersList />} />
           <Route path="/orders/new" element={<OrderForm />} />
           <Route path="/stock" element={<StockList />} />
           <Route path="/stock/in" element={<StockInForm />} />
+          <Route path="/reports/financial" element={<FinancialReport />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       )}

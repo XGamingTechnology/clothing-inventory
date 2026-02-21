@@ -4,10 +4,16 @@ import { OrdersController } from "./orders.controller";
 import { OrdersService } from "./orders.service";
 import { Order } from "./entities/order.entity";
 import { OrderItem } from "./entities/order-item.entity";
+
+// ✅ Import sekali saja
 import { ProductsModule } from "../products/products.module";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Order, OrderItem]), ProductsModule],
+  // ✅ Semua module dependencies harus di dalam imports: []
+  imports: [
+    TypeOrmModule.forFeature([Order, OrderItem]),
+    ProductsModule, // ✅ Cukup di sini, tidak di luar
+  ],
   controllers: [OrdersController],
   providers: [OrdersService],
   exports: [OrdersService],

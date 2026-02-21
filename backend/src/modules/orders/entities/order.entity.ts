@@ -1,9 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
-import { OrderItem } from './order-item.entity';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from "typeorm";
+import { OrderItem } from "./order-item.entity";
 
-@Entity('orders')
+@Entity("orders")
 export class Order {
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn() // ✅ Revert ke number (auto-increment)
   id: number;
 
   @Column({ unique: true })
@@ -15,33 +15,33 @@ export class Order {
   @Column({ nullable: true })
   customerPhone: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  @Column({ type: "decimal", precision: 12, scale: 2 })
   totalAmount: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({ type: "decimal", precision: 12, scale: 2, nullable: true })
   totalHpp?: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({ type: "decimal", precision: 12, scale: 2, nullable: true })
   profit?: number;
 
-  @Column({ default: 'pending' })
+  @Column({ default: "pending" })
   status: string;
 
-  @Column({ default: 'unpaid' })
+  @Column({ default: "unpaid" })
   paymentStatus: string;
 
-  @Column({ nullable: true, type: 'text' })
+  @Column({ nullable: true, type: "text" })
   notes: string;
 
   @Column({ nullable: true })
-  createdBy?: number;
+  createdBy?: number; // ✅ Revert ke number jika user.id juga number
 
   @OneToMany(() => OrderItem, (orderItem) => orderItem.order, { cascade: true })
   items: OrderItem[];
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: "created_at" })
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({ name: "updated_at" })
   updatedAt: Date;
 }

@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { getProducts, getLowStockProducts } from "../../services/products"; // ✅ Import benar
-import { getOrders } from "../../services/orders"; // ✅ Import benar dari orders.js
+import { getProducts, getLowStockProducts } from "../../services/products";
+import { getOrders } from "../../services/orders";
+import { getFinancialReport } from "../../services/reports"; // ✅ Import baru
 import Button from "../../components/ui/Button";
+
+const formatRp = (value) => {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+  }).format(value);
+};
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -9,6 +18,14 @@ const Dashboard = () => {
     orders: 0,
     lowStock: 0,
   });
+
+  // ✅ State untuk financial summary
+  const [financialStats, setFinancialStats] = useState({
+    revenue: 0,
+    profit: 0,
+    margin: 0,
+  });
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -17,26 +34,36 @@ const Dashboard = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch semua data secara paralel
-      const [productsData, ordersData, lowStockData] = await Promise.all([
-        getProducts(),
-        getOrders(), // ✅ Sekarang berfungsi karena import benar
-        getLowStockProducts(),
-      ]);
+      // Fetch data dasar secara paralel
+      const [productsData, ordersData, lowStockData] = await Promise.all([getProducts(), getOrders(), getLowStockProducts()]);
 
       setStats({
         products: productsData.length,
         orders: ordersData.length,
         lowStock: lowStockData.length,
       });
+
+      // ✅ Fetch financial report (30 hari terakhir)
+      try {
+        const endDate = new Date().toISOString().split("T")[0];
+        const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+        const report = await getFinancialReport(startDate, endDate);
+        setFinancialStats({
+          revenue: report.summary.totalRevenue,
+          profit: report.summary.totalProfit,
+          margin: report.summary.profitMargin,
+        });
+      } catch (err) {
+        console.log("Financial report not available yet (backend might not have endpoint)");
+        // Tidak throw error agar dashboard tetap bisa load
+      }
     } catch (err) {
       console.error("Error fetching dashboard stats:", err);
-
-      // ✅ Handle error jika orders API belum siap
       if (err.response?.status === 404) {
-        setError("Orders module not yet implemented. Products data loaded successfully.");
+        setError("Some modules not yet implemented. Basic data loaded.");
       } else {
-        setError(err.response?.data?.message || "Failed to load dashboard data. Please try again.");
+        setError("Failed to load dashboard data. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -45,12 +72,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchStats();
-
-    // ✅ AUTO-REFRESH saat ada perubahan produk
-    const handleProductUpdated = () => {
-      fetchStats();
-    };
-
+    const handleProductUpdated = () => fetchStats();
     window.addEventListener("productUpdated", handleProductUpdated);
     return () => window.removeEventListener("productUpdated", handleProductUpdated);
   }, []);
@@ -63,40 +85,26 @@ const Dashboard = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="py-6">
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 flex items-center">
-          <svg className="w-5 h-5 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-          </svg>
-          {error}
-        </div>
-        <Button onClick={fetchStats} variant="primary">
-          Retry Loading Data
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <div className="py-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="mt-2 text-gray-600">Welcome to your Clothing Inventory System</p>
+          <p className="mt-2 text-gray-600">Overview bisnis & inventori kamu</p>
         </div>
         <Button onClick={fetchStats} variant="outline" className="mt-4 sm:mt-0 flex items-center">
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          Refresh Data
+          🔄 Refresh Data
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {/* Products Card - Klikable ke halaman products */}
-        <div className="bg-white overflow-hidden shadow rounded-lg border border-gray-200 transition-all hover:shadow-md cursor-pointer" onClick={() => (window.location.href = "/products")}>
+      {/* Error Message */}
+      {error && <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg mb-6">⚠️ {error}</div>}
+
+      {/* Stats Grid - Sekarang 4 Kolom */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {/* 1. Products Card */}
+        <div className="bg-white overflow-hidden shadow rounded-lg border border-gray-200 hover:shadow-md transition cursor-pointer" onClick={() => (window.location.href = "/products")}>
           <div className="p-6">
             <div className="flex items-center">
               <div className="p-3 bg-blue-50 rounded-lg">
@@ -105,18 +113,15 @@ const Dashboard = () => {
                 </svg>
               </div>
               <div className="ml-4">
-                <h3 className="text-lg font-medium text-gray-500">Total Products</h3>
-                <p className="mt-1 text-3xl font-bold text-gray-900">{stats.products}</p>
+                <h3 className="text-lg font-medium text-gray-500">Products</h3>
+                <p className="mt-1 text-2xl font-bold text-gray-900">{stats.products}</p>
               </div>
-            </div>
-            <div className="mt-4">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{stats.products === 0 ? "No products yet" : `${stats.products} active products`}</span>
             </div>
           </div>
         </div>
 
-        {/* Orders Card - Klikable ke halaman orders */}
-        <div className="bg-white overflow-hidden shadow rounded-lg border border-gray-200 transition-all hover:shadow-md cursor-pointer" onClick={() => (window.location.href = "/orders")}>
+        {/* 2. Orders Card */}
+        <div className="bg-white overflow-hidden shadow rounded-lg border border-gray-200 hover:shadow-md transition cursor-pointer" onClick={() => (window.location.href = "/orders")}>
           <div className="p-6">
             <div className="flex items-center">
               <div className="p-3 bg-green-50 rounded-lg">
@@ -125,19 +130,16 @@ const Dashboard = () => {
                 </svg>
               </div>
               <div className="ml-4">
-                <h3 className="text-lg font-medium text-gray-500">Total Orders</h3>
-                <p className="mt-1 text-3xl font-bold text-gray-900">{stats.orders}</p>
+                <h3 className="text-lg font-medium text-gray-500">Orders</h3>
+                <p className="mt-1 text-2xl font-bold text-gray-900">{stats.orders}</p>
               </div>
-            </div>
-            <div className="mt-4">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">{stats.orders === 0 ? "No orders yet" : `${stats.orders} orders this month`}</span>
             </div>
           </div>
         </div>
 
-        {/* Low Stock Card - Klikable ke halaman products dengan filter */}
+        {/* 3. Low Stock Card */}
         <div
-          className={`bg-white overflow-hidden shadow rounded-lg border ${stats.lowStock > 0 ? "border-red-300" : "border-gray-200"} transition-all hover:shadow-md cursor-pointer`}
+          className={`bg-white overflow-hidden shadow rounded-lg border ${stats.lowStock > 0 ? "border-red-300" : "border-gray-200"} hover:shadow-md transition cursor-pointer`}
           onClick={() => (window.location.href = "/products?filter=low-stock")}
         >
           <div className="p-6">
@@ -148,16 +150,49 @@ const Dashboard = () => {
                 </svg>
               </div>
               <div className="ml-4">
-                <h3 className="text-lg font-medium text-gray-500">Low Stock Items</h3>
-                <p className={`mt-1 text-3xl font-bold ${stats.lowStock > 0 ? "text-red-600" : "text-gray-900"}`}>{stats.lowStock}</p>
+                <h3 className="text-lg font-medium text-gray-500">Low Stock</h3>
+                <p className={`mt-1 text-2xl font-bold ${stats.lowStock > 0 ? "text-red-600" : "text-gray-900"}`}>{stats.lowStock}</p>
               </div>
             </div>
-            <div className="mt-4">
-              {stats.lowStock > 0 ? (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">⚠️ {stats.lowStock} items need restocking</span>
-              ) : (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">✅ All stock levels healthy</span>
-              )}
+          </div>
+        </div>
+
+        {/* ✅ 4. NEW: Financial Summary Card */}
+        <div className="bg-white overflow-hidden shadow rounded-lg border border-indigo-200 hover:shadow-md transition cursor-pointer group" onClick={() => (window.location.href = "/reports/financial")}>
+          <div className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="p-3 bg-indigo-50 rounded-lg group-hover:bg-indigo-100 transition">
+                  <svg className="h-6 w-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium text-gray-500">Revenue (30d)</h3>
+                  <p className="mt-1 text-2xl font-bold text-indigo-600">{formatRp(financialStats.revenue)}</p>
+                </div>
+              </div>
+              {/* Arrow indicator */}
+              <svg className="h-5 w-5 text-gray-400 group-hover:text-indigo-600 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+
+            {/* Mini stats di bawah */}
+            <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 gap-4">
+              <div>
+                <div className="text-xs text-gray-500">Profit</div>
+                <div className="text-sm font-semibold text-green-600">{formatRp(financialStats.profit)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500">Margin</div>
+                <div className="text-sm font-semibold text-gray-900">{financialStats.margin.toFixed(1)}%</div>
+              </div>
             </div>
           </div>
         </div>
@@ -173,8 +208,7 @@ const Dashboard = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
             </div>
-            <h3 className="mt-4 text-lg font-medium text-gray-900">Add New Product</h3>
-            <p className="mt-1 text-sm text-gray-500">Create a new product entry</p>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Add Product</h3>
           </a>
 
           <a href="/orders/new" className="block bg-white border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-green-500 transition-colors">
@@ -184,22 +218,22 @@ const Dashboard = () => {
               </svg>
             </div>
             <h3 className="mt-4 text-lg font-medium text-gray-900">Create Order</h3>
-            <p className="mt-1 text-sm text-gray-500">Process a new customer order</p>
           </a>
 
-          <a href="/stock/in" className="block bg-white border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-purple-500 transition-colors">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
-              <svg className="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {/* ✅ NEW: Quick Access to Financial Report */}
+          <a href="/reports/financial" className="block bg-white border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-500 transition-colors">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100">
+              <svg className="h-6 w-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth="2"
-                  d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
                 />
               </svg>
             </div>
-            <h3 className="mt-4 text-lg font-medium text-gray-900">Add Stock</h3>
-            <p className="mt-1 text-sm text-gray-500">Record new stock arrivals</p>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Financial Report</h3>
+            <p className="mt-1 text-sm text-gray-500">View revenue & profit details</p>
           </a>
         </div>
       </div>

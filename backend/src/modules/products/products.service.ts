@@ -1,31 +1,31 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Product } from './products.entity';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
-import { ProductResponseDto } from './dto/product-response.dto';
+import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Product } from "./products.entity";
+import { CreateProductDto } from "./dto/create-product.dto";
+import { UpdateProductDto } from "./dto/update-product.dto";
+import { ProductResponseDto } from "./dto/product-response.dto";
 
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectRepository(Product)
-    private productsRepository: Repository<Product>,
+    private productsRepository: Repository<Product>
   ) {}
 
   // ✅ GET ALL ACTIVE PRODUCTS
   async findAll(): Promise<ProductResponseDto[]> {
-    const products = await this.productsRepository.find({ 
+    const products = await this.productsRepository.find({
       where: { isActive: true },
-      order: { createdAt: 'DESC' }
+      order: { createdAt: "DESC" },
     });
     return products.map(this.mapToResponseDto);
   }
 
   // ✅ GET SINGLE PRODUCT BY ID
   async findOne(id: number): Promise<ProductResponseDto> {
-    const product = await this.productsRepository.findOne({ 
-      where: { id, isActive: true } 
+    const product = await this.productsRepository.findOne({
+      where: { id, isActive: true },
     });
 
     if (!product) {
@@ -37,8 +37,8 @@ export class ProductsService {
 
   // ✅ GET PRODUCT BY SKU
   async findBySku(sku: string): Promise<ProductResponseDto> {
-    const product = await this.productsRepository.findOne({ 
-      where: { sku, isActive: true } 
+    const product = await this.productsRepository.findOne({
+      where: { sku, isActive: true },
     });
 
     if (!product) {
@@ -67,8 +67,8 @@ export class ProductsService {
 
   // ✅ UPDATE PRODUCT (with SKU uniqueness check excluding current product)
   async update(id: number, updateProductDto: UpdateProductDto): Promise<ProductResponseDto> {
-    const product = await this.productsRepository.findOne({ 
-      where: { id, isActive: true } 
+    const product = await this.productsRepository.findOne({
+      where: { id, isActive: true },
     });
 
     if (!product) {
@@ -94,8 +94,8 @@ export class ProductsService {
 
   // ✅ SOFT DELETE PRODUCT (set isActive = false)
   async remove(id: number): Promise<void> {
-    const product = await this.productsRepository.findOne({ 
-      where: { id, isActive: true } 
+    const product = await this.productsRepository.findOne({
+      where: { id, isActive: true },
     });
 
     if (!product) {
@@ -108,19 +108,15 @@ export class ProductsService {
 
   // ✅ GET LOW STOCK PRODUCTS (stock < minStock AND isActive = true)
   async getLowStockProducts(): Promise<ProductResponseDto[]> {
-    const products = await this.productsRepository
-      .createQueryBuilder('product')
-      .where('product.stock < product.minStock')
-      .andWhere('product.isActive = :isActive', { isActive: true })
-      .getMany();
+    const products = await this.productsRepository.createQueryBuilder("product").where("product.stock < product.minStock").andWhere("product.isActive = :isActive", { isActive: true }).getMany();
 
     return products.map(this.mapToResponseDto);
   }
 
   // ✅ UPDATE STOCK (for stock adjustments)
   async updateStock(productId: number, quantity: number): Promise<ProductResponseDto> {
-    const product = await this.productsRepository.findOne({ 
-      where: { id: productId, isActive: true } 
+    const product = await this.productsRepository.findOne({
+      where: { id: productId, isActive: true },
     });
 
     if (!product) {
